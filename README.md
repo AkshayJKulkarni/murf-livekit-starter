@@ -198,6 +198,35 @@ See the Configuration section below for voice, STT, and LLM options.
 
 ---
 
+## Telephony (optional)
+
+The quickstart above runs the agent in the browser. You can also connect it to a real phone number — the agent can answer incoming calls or place outgoing ones.
+
+```
+Caller ──PSTN──► SIP provider ──SIP──► LiveKit ──► Your agent
+```
+
+Two starters live in [`backend/src/telephony/`](./backend/src/telephony/). Run these from the `backend/` directory:
+
+| | What it does | Run it |
+|---|---|---|
+| [`inbound/`](./backend/src/telephony/inbound/) | Answers calls to your number | `uv run python src/telephony/inbound/agent.py dev` |
+| [`outbound/`](./backend/src/telephony/outbound/) | Calls a number you give it | `uv run python src/telephony/outbound/dial.py --to +15551234567` |
+
+Both reuse the same Murf Falcon pipeline as the web agent, and ship with tools for transferring to a human, hanging up, and (outbound) bailing out on voicemail.
+
+**Setup is three steps:**
+
+1. Get a phone number from a SIP provider (Twilio or similar) and point it at LiveKit
+2. Create a LiveKit SIP trunk from the JSON templates in each folder — `lk sip inbound create …`
+3. For inbound, create a dispatch rule so LiveKit knows which agent answers
+
+No new Python dependencies are needed. Full walkthrough, environment variables, and troubleshooting: **[backend/src/telephony/README.md](./backend/src/telephony/README.md)**.
+
+> Phone numbers cost money, and some countries require identity or business verification before a provider will issue one. Budget time for that before you plan a demo.
+
+---
+
 ## Configuration
 
 ### Murf voice
@@ -232,7 +261,10 @@ Murf Falcon and LiveKit handle audio format internally. For advanced options, se
 murf-livekit-starter/
 ├── backend/                 # Python voice agent (LiveKit Agents + Murf Falcon)
 │   ├── src/
-│   │   └── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
+│   │   ├── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
+│   │   └── telephony/       # Optional — phone call agents (see its README)
+│   │       ├── inbound/     # Answers incoming calls
+│   │       └── outbound/    # Places outgoing calls
 │   ├── tests/               # Agent tests
 │   ├── .env.example         # Backend env template
 │   ├── pyproject.toml       # Python deps (uv)
@@ -253,6 +285,7 @@ murf-livekit-starter/
 For deeper documentation on each part, see:
 
 - [Backend Documentation](./backend/README.md) — agent pipeline, voice/LLM/STT configuration, testing, deployment
+- [Telephony Documentation](./backend/src/telephony/README.md) — SIP trunks, dispatch rules, inbound and outbound calls
 - [Frontend Documentation](./frontend/README.md) — UI customization, visualizers, theming, component architecture
 
 ---
