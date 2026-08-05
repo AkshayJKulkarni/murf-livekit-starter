@@ -292,14 +292,32 @@ For deeper documentation on each part, see:
 
 ## Links
 
+**Murf**
+
+- [Murf Falcon 2](https://murf.ai/api/docs/text-to-speech-models/falcon-2) — the streaming TTS model this starter uses
+- [Murf Falcon](https://murf.ai/falcon) — product overview and latency numbers
 - [Murf API Docs](https://murf.ai/api/docs)
-- [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library)
-- [LiveKit Docs](https://docs.livekit.io)
-- [Deepgram Docs](https://developers.deepgram.com)
+- [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library) — 150+ voices across 35+ languages
 - [Murf Falcon Benchmarks](https://murf.ai/falcon/benchmarks)
-- [TTS Latency Benchmarker](https://github.com/sahilsgupta/tts-latency-benchmarker) — run your own p50/p95 tests across providers
 - [Murf Discord](https://discord.gg/FbKAy96Sz7)
 - [Murf Startup Incubator](https://murf.ai/api) — 50M free characters for startups
+
+**Telephony**
+
+- [Telephony Setup Guide](./backend/src/telephony/README.md) — inbound and outbound calls in this repo
+- [LiveKit SIP Docs](https://docs.livekit.io/sip/) — trunks, dispatch rules, call lifecycle
+- [Accepting Inbound Calls](https://docs.livekit.io/sip/accepting-calls/)
+- [Making Outbound Calls](https://docs.livekit.io/sip/making-calls/)
+- [SIP Dispatch Rules](https://docs.livekit.io/sip/dispatch-rule/)
+- [Agent Dispatch](https://docs.livekit.io/agents/server/agent-dispatch/) — how agents get routed to calls
+- [SIP Troubleshooting](https://docs.livekit.io/reference/telephony/troubleshooting/)
+- [Twilio Elastic SIP Trunking](https://www.twilio.com/docs/sip-trunking) — the provider used in the examples
+
+**Other**
+
+- [LiveKit Docs](https://docs.livekit.io)
+- [Deepgram Docs](https://developers.deepgram.com)
+- [TTS Latency Benchmarker](https://github.com/sahilsgupta/tts-latency-benchmarker) — run your own p50/p95 tests across providers
 
 ---
 
