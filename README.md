@@ -198,32 +198,52 @@ See the Configuration section below for voice, STT, and LLM options.
 
 ---
 
-## Telephony (optional)
+## Telephony
 
-The quickstart above runs the agent in the browser. You can also connect it to a real phone number — the agent can answer incoming calls or place outgoing ones.
+Give your agent a phone number. The same Murf Falcon pipeline that powers the browser agent can answer incoming calls or place outgoing ones — no extra dependencies required.
 
+```mermaid
+flowchart LR
+    A[📞 Caller] -->|PSTN| B[SIP provider]
+    B -->|SIP| C[LiveKit]
+    C -->|audio| D[🤖 Your agent]
+
+    style A fill:#444441,stroke:#888780,color:#fff
+    style B fill:#185FA5,stroke:#85B7EB,color:#fff
+    style C fill:#D85A30,stroke:#F0997B,color:#fff
+    style D fill:#0F6E56,stroke:#5DCAA5,color:#fff
 ```
-Caller ──PSTN──► SIP provider ──SIP──► LiveKit ──► Your agent
+
+Two self-contained starters live in [`backend/src/telephony/`](./backend/src/telephony/) — copy either folder and build on it.
+
+### [`inbound/`](./backend/src/telephony/inbound/) — answer incoming calls
+
+Someone dials your number and the agent picks up. It reads the caller's number from the SIP participant, greets them, and can transfer to a colleague or hang up when the conversation ends.
+
+```bash
+uv run python src/telephony/inbound/agent.py dev
 ```
 
-Two starters live in [`backend/src/telephony/`](./backend/src/telephony/). Run these from the `backend/` directory:
+### [`outbound/`](./backend/src/telephony/outbound/) — place outgoing calls
 
-| | What it does | Run it |
-|---|---|---|
-| [`inbound/`](./backend/src/telephony/inbound/) | Answers calls to your number | `uv run python src/telephony/inbound/agent.py dev` |
-| [`outbound/`](./backend/src/telephony/outbound/) | Calls a number you give it | `uv run python src/telephony/outbound/dial.py --to +15551234567` |
+You trigger a call and the agent dials out, starting the conversation as soon as someone picks up. It recognises voicemail and hangs up instead of talking to a machine.
 
-Both reuse the same Murf Falcon pipeline as the web agent, and ship with tools for transferring to a human, hanging up, and (outbound) bailing out on voicemail.
+```bash
+uv run python src/telephony/outbound/agent.py dev              # worker
+uv run python src/telephony/outbound/dial.py --to +15551234567  # place a call
+```
 
-**Setup is three steps:**
+### Setup
 
-1. Get a phone number from a SIP provider (Twilio or similar) and point it at LiveKit
-2. Create a LiveKit SIP trunk from the JSON templates in each folder — `lk sip inbound create …`
-3. For inbound, create a dispatch rule so LiveKit knows which agent answers
+Run all commands from the `backend/` directory. Three steps:
 
-No new Python dependencies are needed. Full walkthrough, environment variables, and troubleshooting: **[backend/src/telephony/README.md](./backend/src/telephony/README.md)**.
+1. **Get a phone number** from a SIP provider ([Twilio](https://www.twilio.com/docs/sip-trunking) or any other) and point it at LiveKit
+2. **Create a LiveKit SIP trunk** from the JSON templates included in each folder — `lk sip inbound create …`
+3. **Create a dispatch rule** so LiveKit knows which agent answers (inbound only)
 
-> Phone numbers cost money, and some countries require identity or business verification before a provider will issue one. Budget time for that before you plan a demo.
+Full walkthrough, environment variables, and troubleshooting: **[backend/src/telephony/README.md](./backend/src/telephony/README.md)**
+
+> **Note:** Phone numbers are billed by your SIP provider, and some countries require identity or business verification before one is issued. Factor that into your timeline.
 
 ---
 
