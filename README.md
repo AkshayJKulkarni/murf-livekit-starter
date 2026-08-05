@@ -200,7 +200,7 @@ See the Configuration section below for voice, STT, and LLM options.
 
 ## Telephony
 
-Give your agent a phone number. The same Murf Falcon pipeline that powers the browser agent can answer incoming calls or place outgoing ones — no extra dependencies required.
+Give your agent a phone number. The same Murf Falcon pipeline that powers the browser agent can answer incoming calls or place outgoing ones.
 
 ```mermaid
 flowchart LR
