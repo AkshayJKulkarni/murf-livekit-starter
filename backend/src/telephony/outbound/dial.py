@@ -68,11 +68,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not E164.match(args.to):
-        sys.exit(
-            f"'{args.to}' is not a valid E.164 number. "
-            "Include the country code and a leading +, e.g. +15551234567."
-        )
+    # if not E164.match(args.to):
+    #     sys.exit(
+    #         f"'{args.to}' is not a valid E.164 number. "
+    #         "Include the country code and a leading +, e.g. +15551234567."
+    #     )
 
     room_name = args.room or f"outbound-{uuid.uuid4().hex[:8]}"
 
