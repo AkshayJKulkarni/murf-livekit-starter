@@ -19,6 +19,7 @@ from livekit.agents import (
 from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from db import get_user, upsert_user
+from schemes import check_eligibility
 
 logger = logging.getLogger("agent")
 
@@ -38,6 +39,12 @@ OBJECTIVES
 KNOWLEDGE
 You know about: budgeting basics, savings accounts, FDs, RDs, SIPs, mutual fund categories, term insurance, health insurance, UPI and digital payments, and central government financial schemes.
 You do NOT know: real-time stock prices, live NAV, current interest rates, or any user's personal account data.
+
+TOOLS
+- Use check_scheme_eligibility when the user asks which government schemes they qualify for, or when you have collected their age, occupation, bank account status, and taxpayer status.
+- Collect these four facts conversationally before calling the tool — do not ask all at once.
+- Always tell the user the data is from official scheme portals and mention the date it was last verified.
+- If the tool fails, say: "Abhi scheme information fetch nahi ho pa rahi — thodi der mein try karein ya apne nearest bank branch se poochein."
 
 MEMORY
 - At the start of every call, use the lookup_user tool to check if this caller is known.
@@ -82,6 +89,48 @@ class Assistant(Agent):
             f"Known facts: {user['facts']}, "
             f"Last interaction: {user['last_interaction']}"
         )
+
+    @function_tool
+    async def check_scheme_eligibility(
+        self,
+        context: RunContext,
+        age: int,
+        has_bank_account: bool,
+        occupation: str,
+        is_income_taxpayer: bool,
+    ) -> str:
+        """Check which Indian government financial schemes the caller is eligible for.
+        Call this when the user asks about government schemes they can apply for,
+        or once you have collected their age, whether they have a bank account,
+        their occupation, and whether they pay income tax.
+
+        Args:
+            age: Caller's age in years.
+            has_bank_account: Whether the caller already has a bank account.
+            occupation: Caller's occupation, e.g. 'daily wage worker', 'shopkeeper', 'farmer', 'salaried'.
+            is_income_taxpayer: Whether the caller files income tax returns.
+        """
+        try:
+            result = check_eligibility(age, has_bank_account, occupation, is_income_taxpayer)
+            if not result["eligible"]:
+                return (
+                    f"As of {result['as_of']}, no matching schemes found for these details. "
+                    f"Source: {result['data_source']}"
+                )
+            schemes_text = []
+            for s in result["eligible"]:
+                docs = ", ".join(s["documents"])
+                schemes_text.append(
+                    f"{s['name']}: {s['description']} "
+                    f"Documents needed: {docs}. Apply at: {s['apply_at']}."
+                )
+            return (
+                f"Data as of {result['as_of']}. Source: {result['data_source']}. "
+                f"Eligible schemes: " + " | ".join(schemes_text)
+            )
+        except Exception as e:
+            logger.error(f"check_scheme_eligibility failed: {e}")
+            return "Scheme data abhi available nahi hai. Apne nearest bank branch se poochein."
 
     @function_tool
     async def save_user_info(
