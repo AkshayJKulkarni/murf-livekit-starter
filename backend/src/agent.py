@@ -18,7 +18,7 @@ from livekit.agents import (
 )
 from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from db import get_user, upsert_user
+from db import get_user, upsert_user, create_escalation as db_create_escalation
 from schemes import check_eligibility
 
 logger = logging.getLogger("agent")
@@ -63,6 +63,14 @@ GUARDRAILS
 - NEVER claim to be a licensed financial advisor or SEBI-registered entity.
 - If a user describes financial distress or debt crisis, escalate: "Yeh situation serious lagti hai. Main suggest karoonga ki aap ek certified financial counselor ya apne nearest bank branch se milein jaldi."
 - If asked anything outside personal finance — health, legal, politics — politely decline: "Yeh meri expertise ke bahar hai. Main sirf personal finance mein help kar sakta hoon."
+
+ESCALATION
+Use the create_escalation tool in exactly two situations:
+1. FRAUD: User says someone asked them for OTP, PIN, or money was transferred without their consent.
+2. BLOCKED/DISPUTE: User says their bank account is blocked, loan was wrongly rejected, or they need a decision only a human advisor can make.
+Before creating the escalation, ask: "Main yeh details ek human advisor ko bhejne chahta hoon jo aapki madad kar sake. Kya aap allow karenge?"
+If they say yes — call create_escalation. If they say no — do not escalate, just guide them to visit their bank branch.
+After escalating, give them the reference ID and say: "Aapka reference number hai [REF_ID]. Ek FinSaathi advisor 24 ghante ke andar aapse contact karenge."
 
 STYLE
 - Keep responses to 2–3 sentences max unless the user asks for detail.
@@ -131,6 +139,49 @@ class Assistant(Agent):
         except Exception as e:
             logger.error(f"check_scheme_eligibility failed: {e}")
             return "Scheme data abhi available nahi hai. Apne nearest bank branch se poochein."
+
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        caller_name: str,
+        reason: str,
+        summary: str,
+        already_checked: str,
+        urgency: str,
+        language: str,
+        follow_up: str,
+    ) -> str:
+        """Create a human escalation request. Call this ONLY when:
+        1. The user reports possible fraud (someone asked for OTP, unauthorized transfer), OR
+        2. The user has a dispute or blocked account that needs a human advisor decision.
+        Always get the user's consent before calling this tool.
+
+        Args:
+            caller_name: Name of the caller.
+            reason: One of 'fraud' or 'dispute'.
+            summary: Brief description of the problem in 1-2 sentences. No OTP, PIN, account numbers.
+            already_checked: What Artha already tried or explained.
+            urgency: 'high', 'medium', or 'low'.
+            language: Language the caller used, e.g. 'Hindi', 'Hinglish', 'English'.
+            follow_up: How the caller wants to be contacted, e.g. 'phone call', 'not specified'.
+        """
+        try:
+            ref_id = db_create_escalation(
+                user_id=self._user_id,
+                caller_name=caller_name,
+                reason=reason,
+                summary=summary,
+                already_checked=already_checked,
+                urgency=urgency,
+                language=language,
+                follow_up=follow_up,
+            )
+            logger.info(f"Escalation created: {ref_id} for user {self._user_id}")
+            return f"Escalation created successfully. Reference ID: {ref_id}"
+        except Exception as e:
+            logger.error(f"create_escalation failed: {e}")
+            return "Escalation create nahi ho payi. User ko nearest bank branch jaane ko bolein."
 
     @function_tool
     async def save_user_info(

@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,6 +18,21 @@ def _connect() -> sqlite3.Connection:
             language_preference TEXT,
             facts TEXT DEFAULT '{}',
             last_interaction TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS escalations (
+            ref_id TEXT PRIMARY KEY,
+            user_id TEXT,
+            caller_name TEXT,
+            reason TEXT,
+            summary TEXT,
+            already_checked TEXT,
+            urgency TEXT,
+            language TEXT,
+            follow_up TEXT,
+            status TEXT DEFAULT 'open',
+            created_at TEXT
         )
     """)
     conn.commit()
@@ -50,3 +66,31 @@ def upsert_user(user_id: str, name: str, language_preference: str, facts: dict) 
                 last_interaction = excluded.last_interaction
         """, (user_id, name, language_preference, json.dumps(facts), now))
         conn.commit()
+
+
+def create_escalation(
+    user_id: str,
+    caller_name: str,
+    reason: str,
+    summary: str,
+    already_checked: str,
+    urgency: str,
+    language: str,
+    follow_up: str,
+) -> str:
+    ref_id = "ESC-" + uuid.uuid4().hex[:6].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute("""
+            INSERT INTO escalations
+            (ref_id, user_id, caller_name, reason, summary, already_checked, urgency, language, follow_up, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+        """, (ref_id, user_id, caller_name, reason, summary, already_checked, urgency, language, follow_up, now))
+        conn.commit()
+    return ref_id
+
+
+def get_all_escalations() -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute("SELECT * FROM escalations ORDER BY created_at DESC").fetchall()
+    return [dict(row) for row in rows]
