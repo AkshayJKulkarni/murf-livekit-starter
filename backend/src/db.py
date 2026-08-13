@@ -35,6 +35,17 @@ def _connect() -> sqlite3.Connection:
             created_at TEXT
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS calls (
+            call_id TEXT PRIMARY KEY,
+            user_id TEXT,
+            outcome TEXT,
+            reason TEXT,
+            duration_seconds INTEGER,
+            language TEXT,
+            created_at TEXT
+        )
+    """)
     conn.commit()
     return conn
 
@@ -94,3 +105,31 @@ def get_all_escalations() -> list[dict]:
     with _connect() as conn:
         rows = conn.execute("SELECT * FROM escalations ORDER BY created_at DESC").fetchall()
     return [dict(row) for row in rows]
+
+
+def log_call(user_id: str, outcome: str, reason: str, language: str, duration_seconds: int = 0) -> str:
+    call_id = "CALL-" + uuid.uuid4().hex[:8].upper()
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute("""
+            INSERT INTO calls (call_id, user_id, outcome, reason, language, duration_seconds, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (call_id, user_id, outcome, reason, language, duration_seconds, now))
+        conn.commit()
+    return call_id
+
+
+def get_call_stats() -> dict:
+    with _connect() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM calls").fetchone()[0]
+        successful = conn.execute("SELECT COUNT(*) FROM calls WHERE outcome = 'success'").fetchone()[0]
+        failed = conn.execute("SELECT COUNT(*) FROM calls WHERE outcome = 'failed'").fetchone()[0]
+        recent = conn.execute(
+            "SELECT call_id, outcome, reason, language, created_at FROM calls ORDER BY created_at DESC LIMIT 10"
+        ).fetchall()
+    return {
+        "total": total,
+        "successful": successful,
+        "failed": failed,
+        "recent": [dict(r) for r in recent],
+    }

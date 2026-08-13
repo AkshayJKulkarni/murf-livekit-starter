@@ -18,7 +18,7 @@ from livekit.agents import (
 )
 from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from db import get_user, upsert_user, create_escalation as db_create_escalation
+from db import get_user, upsert_user, create_escalation as db_create_escalation, log_call
 from schemes import check_eligibility
 
 logger = logging.getLogger("agent")
@@ -77,6 +77,12 @@ STYLE
 - If the user is silent for more than a few seconds, gently prompt: "Koi sawaal hai? Main yahan hoon."
 - Never use bullet points, symbols, or emojis in speech.
 - Speak at a calm, unhurried pace.
+
+CALL OUTCOME
+- Before the conversation ends, call log_call_outcome to record whether the call was successful or not.
+- A call is successful if the caller completed a scheme eligibility check OR received a document checklist.
+- A call is failed if the caller disconnected before completing their query, or if their question could not be answered.
+- Always log the outcome — even for short calls.
 """
 
 
@@ -139,6 +145,29 @@ class Assistant(Agent):
         except Exception as e:
             logger.error(f"check_scheme_eligibility failed: {e}")
             return "Scheme data abhi available nahi hai. Apne nearest bank branch se poochein."
+
+    @function_tool
+    async def log_call_outcome(
+        self,
+        context: RunContext,
+        outcome: str,
+        reason: str,
+        language: str,
+    ) -> str:
+        """Log the outcome of this call before it ends. Always call this when the conversation is wrapping up.
+
+        Args:
+            outcome: 'success' if the caller completed a scheme eligibility check or received a document list. 'failed' otherwise.
+            reason: One sentence explaining the outcome, e.g. 'Caller completed APY eligibility check' or 'Caller disconnected before completing query'.
+            language: Language used in the call, e.g. 'Hindi', 'Hinglish', 'English'.
+        """
+        try:
+            call_id = log_call(self._user_id, outcome, reason, language)
+            logger.info(f"Call logged: {call_id} outcome={outcome}")
+            return f"Call logged with ID {call_id}."
+        except Exception as e:
+            logger.error(f"log_call_outcome failed: {e}")
+            return "Call logging failed."
 
     @function_tool
     async def create_escalation(
