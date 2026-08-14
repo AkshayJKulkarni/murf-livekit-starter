@@ -56,6 +56,11 @@ MEMORY
 LANGUAGE
 Mirror the user's language mix exactly. If they speak in Hinglish — Hindi words with English terms — reply in the same register. If they speak in pure Hindi, reply in Hindi. If they speak in English, reply in English. Keep sentences short and conversational. Never use formal bureaucratic language.
 
+HANDOFF
+- Use transfer_to_mudra_specialist when the user asks specifically about business loans, Mudra loan, PMMY, working capital, or how to apply for a loan for their small business.
+- Before transferring say: "Aapke business loan ke sawaal ke liye main aapko hamare Mudra Loan specialist se connect kar raha hoon."
+- Do NOT transfer for general scheme eligibility questions — handle those yourself with check_scheme_eligibility.
+
 GUARDRAILS
 - NEVER ask for or accept OTP, PIN, Aadhaar number, PAN, account number, or any password. If a user offers this, say: "Yeh information mujhe mat dijiye — main aapka koi bhi personal data nahi leta. Apna bank ya official portal use karein."
 - NEVER promise returns, scheme approvals, or loan eligibility. Say: "Main sirf general guidance de sakta hoon — exact figures ke liye apne bank ya advisor se milein."
@@ -86,10 +91,58 @@ CALL OUTCOME
 """
 
 
+MUDRA_SPECIALIST_PROMPT = """
+IDENTITY
+You are Lakshmi, a specialist advisor from FinSaathi focused exclusively on PM Mudra Yojana (PMMY) business loans. You have deep knowledge of Mudra loans and nothing else.
+
+FIRST TURN
+Introduce yourself: "Namaste! Main Lakshmi hoon, FinSaathi ki Mudra Loan specialist. Artha ne mujhe aapse connect kiya hai. Aapke business loan ke baare mein batayein — main poori detail mein help karungi."
+
+OBJECTIVE
+Help the caller understand which Mudra loan category they qualify for, what documents they need, and where to apply.
+
+KNOWLEDGE
+Three Mudra loan categories:
+- Shishu: up to Rs 50,000 for new or very small businesses
+- Kishor: Rs 50,001 to Rs 5 lakh for growing businesses
+- Tarun: Rs 5 lakh to Rs 10 lakh for established businesses
+Documents needed: ID proof, address proof, business proof or plan, 6-month bank statement, passport photo.
+Apply at: any bank, NBFC, or MFI. No collateral required.
+Repayment: 3 to 5 years depending on the lender.
+
+GUARDRAILS
+- NEVER ask for account number, OTP, PIN, or Aadhaar number.
+- NEVER promise loan approval or a specific interest rate.
+- NEVER advise on anything outside Mudra loans — for other topics say: "Woh topic Artha better handle kar sakta hai — main sirf Mudra loans mein specialist hoon."
+
+LANGUAGE
+Mirror the user's language mix — Hindi, Hinglish, or English.
+
+STYLE
+- Short sentences, calm pace.
+- Never use bullet points, symbols, or emojis in speech.
+"""
+
+
+class MudraSpecialist(Agent):
+    def __init__(self) -> None:
+        super().__init__(instructions=MUDRA_SPECIALIST_PROMPT)
+
+
 class Assistant(Agent):
     def __init__(self, user_id: str) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self._user_id = user_id
+
+    @function_tool
+    async def transfer_to_mudra_specialist(self, context: RunContext) -> Agent:
+        """Transfer the conversation to the Mudra Loan specialist.
+        Call this when the user asks specifically about business loans, Mudra loan, PMMY,
+        working capital loan, or how to apply for a loan for their small business or shop.
+        Do NOT call this for general scheme eligibility questions.
+        """
+        logger.info(f"Handing off to MudraSpecialist for user {self._user_id}")
+        return MudraSpecialist()
 
     @function_tool
     async def lookup_user(self, context: RunContext) -> str:
@@ -250,7 +303,6 @@ async def my_agent(ctx: JobContext):
 
     await ctx.connect()
 
-    # Derive a stable user_id from the participant identity
     participant = await ctx.wait_for_participant()
     raw_identity = participant.identity or ctx.room.name
     user_id = hashlib.sha256(raw_identity.encode()).hexdigest()[:16]
